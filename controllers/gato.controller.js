@@ -24,7 +24,10 @@ export const registrarGato = async (req, res) => {
             });
         }
 
-        const extension = imagen.originalname.split(".").pop().toLowerCase();
+        const extension = imagen.originalname
+            .split(".")
+            .pop()
+            .toLowerCase();
 
         const nombreArchivo = `gato-${Date.now()}-${Math.random()
             .toString(36)
@@ -79,7 +82,6 @@ export const registrarGato = async (req, res) => {
     }
 };
 
-
 // Obtener todos los gatos
 export const obtenerGatos = async (req, res) => {
     try {
@@ -93,7 +95,10 @@ export const obtenerGatos = async (req, res) => {
             ...doc.data(),
         }));
 
-        res.status(200).json(gatos);
+        res.status(200).json({
+            mensaje: "Gatos obtenidos correctamente.",
+            gatos,
+        });
 
     } catch (error) {
         console.error("Error al obtener gatos:", error);
