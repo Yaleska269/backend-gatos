@@ -3,14 +3,14 @@ import multer from "multer";
 
 import {
     registrarGato,
-    obtenerGatos
+    obtenerGatos,
+    actualizarGato
 } from "../controllers/gato.controller.js";
 
 const router = express.Router();
 
 const upload = multer({
     storage: multer.memoryStorage(),
-
     limits: {
         fileSize: 5 * 1024 * 1024,
     },
@@ -23,7 +23,17 @@ router.post(
     registrarGato
 );
 
+// Actualizar un gato
+router.put(
+    "/gato/:id",
+    upload.single("imagen"),
+    actualizarGato
+);
+
 // Obtener todos los gatos
-router.get("/gatos", obtenerGatos);
+router.get(
+    "/gatos",
+    obtenerGatos
+);
 
 export default router;
