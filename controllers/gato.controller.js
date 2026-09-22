@@ -82,6 +82,7 @@ export const registrarGato = async (req, res) => {
     }
 };
 
+
 // Obtener todos los gatos
 export const obtenerGatos = async (req, res) => {
     try {
@@ -197,6 +198,59 @@ export const actualizarGato = async (req, res) => {
 
         res.status(500).json({
             mensaje: "Error al actualizar el gato.",
+            error: error.message,
+        });
+    }
+};
+
+
+// Eliminar gato
+export const eliminarGato = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const docRef = db.collection("gatos").doc(id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({
+                mensaje: "Gato no encontrado.",
+            });
+        }
+
+        // Eliminar la imagen de Supabase
+        const imagenUrl = doc.data().imagenUrl;
+
+        if (imagenUrl) {
+            try {
+                // Extraer la ruta del archivo desde la URL pública
+                const ruta = imagenUrl.split("/imagenes_gatos/")[1];
+
+                if (ruta) {
+                    await supabase.storage
+                        .from("imagenes_gatos")
+                        .remove([ruta]);
+                }
+            } catch (err) {
+                console.error(
+                    "No se pudo eliminar la imagen de Supabase:",
+                    err.message
+                );
+            }
+        }
+
+        // Eliminar el documento de Firestore
+        await docRef.delete();
+
+        res.status(200).json({
+            mensaje: `Gato eliminado con éxito. ID: ${id}`,
+        });
+
+    } catch (error) {
+        console.error("Error al eliminar gato:", error);
+
+        res.status(500).json({
+            mensaje: "Error al eliminar el gato.",
             error: error.message,
         });
     }
