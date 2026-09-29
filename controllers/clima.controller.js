@@ -1,6 +1,3 @@
-import db from "../firebase.js";
-import supabase from "../supabase.js";
-
 export const obtenerClima = async (req, res) => {
     try {
         const { lat, lon } = req.query;
@@ -32,11 +29,11 @@ export const obtenerClima = async (req, res) => {
             });
         }
 
-        // Formatear solo las primeras 12 horas
         const pronostico = data.hourly.time.map((hora, index) => ({
             hora,
             temperatura: data.hourly.temperature_2m[index],
-            probabilidadLluvia: data.hourly.precipitation_probability[index],
+            probabilidadLluvia:
+                data.hourly.precipitation_probability[index],
         }));
 
         res.status(200).json({
@@ -44,10 +41,12 @@ export const obtenerClima = async (req, res) => {
                 latitud: latitude,
                 longitud: longitude,
             },
-            pronostico, // array de 12 horas
+            pronostico,
         });
+
     } catch (error) {
         console.error("Error en obtenerClima:", error);
+
         res.status(500).json({
             mensaje: "Error al obtener el pronóstico del clima.",
             error: error.message,
