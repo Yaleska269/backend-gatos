@@ -22,8 +22,6 @@ export const obtenerClima = async (req, res) => {
         const respuesta = await fetch(url);
         const data = await respuesta.json();
 
-        console.log("Open-Meteo:", data);
-
         if (!respuesta.ok) {
             return res.status(respuesta.status).json({
                 mensaje: "Open-Meteo rechazó la solicitud.",
@@ -32,18 +30,10 @@ export const obtenerClima = async (req, res) => {
             });
         }
 
-        if (!data.hourly || !data.hourly.time || !data.hourly.temperature_2m) {
-            return res.status(500).json({
-                mensaje: "Open-Meteo no devolvió los datos esperados."
-            });
-        }
-
         const pronostico = data.hourly.time.slice(0, 12).map((hora, index) => ({
             hora: hora,
             temperatura: data.hourly.temperature_2m[index],
-            probabilidadLluvia: data.hourly.precipitation_probability
-                ? data.hourly.precipitation_probability[index]
-                : 0
+            probabilidadLluvia: data.hourly.precipitation_probability[index]
         }));
 
         return res.status(200).json({
