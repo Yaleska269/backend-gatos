@@ -8,37 +8,48 @@ export const obtenerClima = async (req, res) => {
             });
         }
 
-        const latitude = parseFloat(lat);
-        const longitude = parseFloat(lon);
+        const latitude = Number(lat);
+        const longitude = Number(lon);
 
-        if (isNaN(latitude) || isNaN(longitude)) {
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
             return res.status(400).json({
-                mensaje: "lat y lon deben ser números válidos."
+                mensaje: "Las coordenadas no son válidas."
             });
         }
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability&forecast_days=1&timezone=auto`;
+        // Primera opción
+        let url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability&timezone=auto`;
 
-        console.log("Consultando:", url);
+        let respuesta = await fetch(url);
 
-        const respuesta = await fetch(url);
+        // Si falla, hacemos una segunda petición más sencilla
+        if (!respuesta.ok) {
+            console.log("Primera petición falló. Intentando nuevamente...");
+
+            url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability`;
+
+            respuesta = await fetch(url);
+        }
 
         const data = await respuesta.json();
 
-        console.log("Respuesta Open-Meteo:", data);
+        console.log("Open-Meteo:", data);
 
         if (!respuesta.ok) {
             return res.status(500).json({
-                mensaje: "Error al obtener el clima de Open-Meteo.",
-                estado: respuesta.status,
-                detalle: data
+                mensaje: "Open-Meteo rechazó la solicitud.",
+                error: data.reason || "Error desconocido",
+                estado: respuesta.status
             });
         }
 
-        if (!data.hourly || !data.hourly.time) {
+        if (
+            !data.hourly ||
+            !data.hourly.time ||
+            !data.hourly.temperature_2m
+        ) {
             return res.status(500).json({
-                mensaje: "Open-Meteo no devolvió datos horarios.",
-                detalle: data
+                mensaje: "Open-Meteo no devolvió los datos esperados."
             });
         }
 
@@ -48,10 +59,12 @@ export const obtenerClima = async (req, res) => {
                 hora: hora,
                 temperatura: data.hourly.temperature_2m[index],
                 probabilidadLluvia:
-                    data.hourly.precipitation_probability[index]
+                    data.hourly.precipitation_probability
+                        ? data.hourly.precipitation_probability[index]
+                        : 0
             }));
 
-        res.status(200).json({
+        return res.status(200).json({
             ubicacion: {
                 latitud: latitude,
                 longitud: longitude
@@ -62,8 +75,8 @@ export const obtenerClima = async (req, res) => {
     } catch (error) {
         console.error("ERROR CLIMA:", error);
 
-        res.status(500).json({
-            mensaje: "Error al obtener el pronóstico del clima.",
+        return res.status(500).json({
+            mensaje: "No se pudo conectar con Open-Meteo.",
             error: error.message
         });
     }
