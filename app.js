@@ -7,11 +7,9 @@ import climaRoutes from "./routes/clima.routes.js";
 const app = express();
 
 app.use(cors());
-
 app.use(express.json());
 
 app.use(gatoRoutes);
-
 app.use(climaRoutes);
 
 app.use((req, res) => {
