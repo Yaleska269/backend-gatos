@@ -1,11 +1,13 @@
 import express from "express";
+
 import multer from "multer";
 
 import {
     registrarGato,
     obtenerGatos,
     actualizarGato,
-    eliminarGato
+    eliminarGato,
+    buscarGatos
 } from "../controllers/gato.controller.js";
 
 const router = express.Router();
@@ -35,6 +37,12 @@ router.put(
 router.get(
     "/gatos",
     obtenerGatos
+);
+
+// Buscar gatos
+router.get(
+    "/gatos/buscar",
+    buscarGatos
 );
 
 // Eliminar un gato
