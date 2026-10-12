@@ -1,6 +1,31 @@
 import db from "../firebase.js";
 import supabase from "../supabase.js";
 
+export const guardarAuditoria = async ({
+    accion,
+    gatoId,
+    valoresAnteriores = null,
+    valoresNuevos = null,
+    req,
+}) => {
+    try {
+        await db.collection("auditoria_gatos").add({
+            accion,
+            gatoId: gatoId || null,
+            fecha: new Date().toISOString(),
+            ip: req.auditoria?.ip || "desconocida",
+            userAgent: req.auditoria?.userAgent || "desconocido",
+            metodo: req.auditoria?.metodo || req.method,
+            ruta: req.auditoria?.ruta || req.originalUrl,
+            valoresAnteriores,
+            valoresNuevos,
+        });
+    } catch (err) {
+        // No rompemos la operación principal si falla el log
+        console.error("Error al guardar auditoría:", err.message);
+    }
+};
+
 export const registrarGato = async (req, res) => {
     try {
         const { nombre, edad, peso, raza } = req.body || {};
@@ -65,6 +90,21 @@ export const registrarGato = async (req, res) => {
             fecha: new Date().toISOString(),
         });
 
+        await guardarAuditoria({
+            accion: "crear",
+            gatoId: docRef.id,
+            valoresAnteriores: null,
+            valoresNuevos: {
+                nombre,
+                edad: Number(edad),
+                peso: Number(peso),
+                raza,
+                imagenUrl,
+            },
+            req,
+        });
+
+
         res.status(201).json({
             mensaje: `¡Gato registrado con éxito! ID: ${docRef.id} | Nombre: ${nombre} | Edad: ${edad} años | Peso: ${peso} kg | Raza: ${raza}`,
             id: docRef.id,
@@ -127,8 +167,12 @@ export const actualizarGato = async (req, res) => {
             });
         }
 
-        let imagenUrl = doc.data().imagenUrl;
+        // Guardar los datos anteriores
+        const datosAnteriores = doc.data();
 
+        let imagenUrl = datosAnteriores.imagenUrl;
+
+        // Procesar la nueva imagen, si se envió
         if (imagen) {
             if (!imagen.mimetype.startsWith("image/")) {
                 return res.status(400).json({
@@ -156,6 +200,7 @@ export const actualizarGato = async (req, res) => {
 
             if (uploadError) {
                 console.error("Error al subir imagen:", uploadError);
+
                 return res.status(500).json({
                     mensaje: "Error al subir la imagen a Supabase.",
                     error: uploadError.message,
@@ -169,22 +214,42 @@ export const actualizarGato = async (req, res) => {
             imagenUrl = publicUrlData.publicUrl;
         }
 
-        await docRef.update({
+        // Preparar los valores nuevos
+        const valoresNuevos = {
             nombre,
             edad: Number(edad),
             peso: Number(peso),
             raza,
             imagenUrl,
+        };
+
+        // Actualizar el gato
+        await docRef.update(valoresNuevos);
+
+        // Registrar la auditoría
+        await guardarAuditoria({
+            accion: "actualizar",
+            gatoId: id,
+            valoresAnteriores: {
+                nombre: datosAnteriores.nombre,
+                edad: datosAnteriores.edad,
+                peso: datosAnteriores.peso,
+                raza: datosAnteriores.raza,
+                imagenUrl: datosAnteriores.imagenUrl,
+            },
+            valoresNuevos,
+            req,
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             mensaje: `¡Gato actualizado con éxito! ID: ${id} | Nombre: ${nombre}`,
             id,
             imagenUrl,
         });
     } catch (error) {
         console.error("Error al actualizar gato:", error);
-        res.status(500).json({
+
+        return res.status(500).json({
             mensaje: "Error al actualizar el gato.",
             error: error.message,
         });
@@ -205,8 +270,12 @@ export const eliminarGato = async (req, res) => {
             });
         }
 
-        const imagenUrl = doc.data().imagenUrl;
+        // Capturar los datos anteriores
+        const datosAnteriores = doc.data();
 
+        const imagenUrl = datosAnteriores.imagenUrl;
+
+        // Eliminar imagen de Supabase
         if (imagenUrl) {
             try {
                 const ruta = imagenUrl.split("/imagenes_gatos/")[1];
@@ -224,14 +293,31 @@ export const eliminarGato = async (req, res) => {
             }
         }
 
+        // Eliminar registro de Firebase
         await docRef.delete();
 
-        res.status(200).json({
+        // Guardar auditoría
+        await guardarAuditoria({
+            accion: "eliminar",
+            gatoId: id,
+            valoresAnteriores: {
+                nombre: datosAnteriores.nombre,
+                edad: datosAnteriores.edad,
+                peso: datosAnteriores.peso,
+                raza: datosAnteriores.raza,
+                imagenUrl: datosAnteriores.imagenUrl,
+            },
+            valoresNuevos: null,
+            req,
+        });
+
+        return res.status(200).json({
             mensaje: `Gato eliminado con éxito. ID: ${id}`,
         });
     } catch (error) {
         console.error("Error al eliminar gato:", error);
-        res.status(500).json({
+
+        return res.status(500).json({
             mensaje: "Error al eliminar el gato.",
             error: error.message,
         });
