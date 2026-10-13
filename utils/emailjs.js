@@ -1,35 +1,48 @@
-import emailjs from '@emailjs/nodejs';
+
+import emailjs from "@emailjs/nodejs";
 
 export const enviarListadoGatos = async (gatos) => {
+    const serviceId = process.env.EMAILJS_SERVICE_ID;
+    const templateId = process.env.EMAILJS_TEMPLATE_ID;
+    const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY;
+
+    // Comprobar que las variables estén configuradas
+    if (!serviceId || !templateId || !publicKey || !privateKey) {
+        throw new Error(
+            "Faltan variables de entorno de EmailJS en la configuración del backend."
+        );
+    }
+
     const message = gatos
         .map(
             (g, i) =>
                 `${i + 1}. ${g.nombre} | Edad: ${g.edad} años | Peso: ${g.peso} kg | Raza: ${g.raza} | ID: ${g.id}`
         )
-        .join('\n');
+        .join("\n");
 
     const templateParams = {
         total: gatos.length,
-        message: message || 'No hay gatos registrados.',
-        fecha: new Date().toLocaleString('es-ES'),
-        // puedes agregar más campos si tu template los necesita
+        message: message || "No hay gatos registrados.",
+        fecha: new Date().toLocaleString("es-NI"),
     };
 
     try {
         const response = await emailjs.send(
-            process.env.EMAILJS_SERVICE_ID,
-            process.env.EMAILJS_TEMPLATE_ID,
+            serviceId,
+            templateId,
             templateParams,
             {
-                publicKey: process.env.EMAILJS_PUBLIC_KEY,
-                privateKey: process.env.EMAILJS_PRIVATE_KEY, // altamente recomendado
+                publicKey,
+                privateKey,
             }
         );
 
-        console.log('Email enviado con éxito:', response.status, response.text);
+        console.log("Email enviado con éxito:", response.status, response.text);
+
         return response;
-    } catch (err) {
-        console.error('Error al enviar email con EmailJS:', err);
-        throw err;
+    } catch (error) {
+        console.error("Error al enviar email con EmailJS:", error);
+        throw error;
     }
 };
