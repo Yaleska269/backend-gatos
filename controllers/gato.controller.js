@@ -1,6 +1,9 @@
+
 import db from "../firebase.js";
 import supabase from "../supabase.js";
+import { enviarListadoGatos } from "../utils/emailjs.js";
 
+// Guardar auditoría
 export const guardarAuditoria = async ({
     accion,
     gatoId,
@@ -21,11 +24,11 @@ export const guardarAuditoria = async ({
             valoresNuevos,
         });
     } catch (err) {
-        // No rompemos la operación principal si falla el log
         console.error("Error al guardar auditoría:", err.message);
     }
 };
 
+// Registrar gato
 export const registrarGato = async (req, res) => {
     try {
         const { nombre, edad, peso, raza } = req.body || {};
@@ -69,6 +72,7 @@ export const registrarGato = async (req, res) => {
 
         if (uploadError) {
             console.error("Error al subir imagen:", uploadError);
+
             return res.status(500).json({
                 mensaje: "Error al subir la imagen a Supabase.",
                 error: uploadError.message,
@@ -104,15 +108,15 @@ export const registrarGato = async (req, res) => {
             req,
         });
 
-
-        res.status(201).json({
+        return res.status(201).json({
             mensaje: `¡Gato registrado con éxito! ID: ${docRef.id} | Nombre: ${nombre} | Edad: ${edad} años | Peso: ${peso} kg | Raza: ${raza}`,
             id: docRef.id,
             imagenUrl,
         });
     } catch (error) {
         console.error("Error:", error);
-        res.status(500).json({
+
+        return res.status(500).json({
             mensaje: "Error al registrar el gato.",
             error: error.message,
         });
@@ -132,13 +136,14 @@ export const obtenerGatos = async (req, res) => {
             ...doc.data(),
         }));
 
-        res.status(200).json({
+        return res.status(200).json({
             mensaje: "Gatos obtenidos correctamente.",
             gatos,
         });
     } catch (error) {
         console.error("Error al obtener gatos:", error);
-        res.status(500).json({
+
+        return res.status(500).json({
             mensaje: "Error al obtener los gatos.",
             error: error.message,
         });
@@ -167,12 +172,9 @@ export const actualizarGato = async (req, res) => {
             });
         }
 
-        // Guardar los datos anteriores
         const datosAnteriores = doc.data();
-
         let imagenUrl = datosAnteriores.imagenUrl;
 
-        // Procesar la nueva imagen, si se envió
         if (imagen) {
             if (!imagen.mimetype.startsWith("image/")) {
                 return res.status(400).json({
@@ -214,7 +216,6 @@ export const actualizarGato = async (req, res) => {
             imagenUrl = publicUrlData.publicUrl;
         }
 
-        // Preparar los valores nuevos
         const valoresNuevos = {
             nombre,
             edad: Number(edad),
@@ -223,10 +224,8 @@ export const actualizarGato = async (req, res) => {
             imagenUrl,
         };
 
-        // Actualizar el gato
         await docRef.update(valoresNuevos);
 
-        // Registrar la auditoría
         await guardarAuditoria({
             accion: "actualizar",
             gatoId: id,
@@ -270,9 +269,7 @@ export const eliminarGato = async (req, res) => {
             });
         }
 
-        // Capturar los datos anteriores
         const datosAnteriores = doc.data();
-
         const imagenUrl = datosAnteriores.imagenUrl;
 
         // Eliminar imagen de Supabase
@@ -281,9 +278,16 @@ export const eliminarGato = async (req, res) => {
                 const ruta = imagenUrl.split("/imagenes_gatos/")[1];
 
                 if (ruta) {
-                    await supabase.storage
+                    const { error } = await supabase.storage
                         .from("imagenes_gatos")
                         .remove([ruta]);
+
+                    if (error) {
+                        console.error(
+                            "No se pudo eliminar la imagen:",
+                            error.message
+                        );
+                    }
                 }
             } catch (err) {
                 console.error(
@@ -296,7 +300,6 @@ export const eliminarGato = async (req, res) => {
         // Eliminar registro de Firebase
         await docRef.delete();
 
-        // Guardar auditoría
         await guardarAuditoria({
             accion: "eliminar",
             gatoId: id,
@@ -368,12 +371,41 @@ export const buscarGatos = async (req, res) => {
                 );
             });
 
-        res.status(200).json(gatos);
+        return res.status(200).json(gatos);
     } catch (error) {
         console.error("Error al buscar gatos:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             mensaje: "Error al buscar los gatos.",
+            error: error.message,
+        });
+    }
+};
+
+// Enviar listado de gatos por correo electrónico
+export const enviarGatosPorEmail = async (req, res) => {
+    try {
+        const snapshot = await db
+            .collection("gatos")
+            .orderBy("fecha", "desc")
+            .get();
+
+        const gatos = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        await enviarListadoGatos(gatos);
+
+        return res.status(200).json({
+            mensaje: `Se envió el listado de ${gatos.length} gato(s) por correo.`,
+            total: gatos.length,
+        });
+    } catch (error) {
+        console.error("Error al enviar gatos por email:", error);
+
+        return res.status(500).json({
+            mensaje: "Error al enviar el listado de gatos por correo.",
             error: error.message,
         });
     }

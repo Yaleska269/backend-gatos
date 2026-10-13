@@ -5,13 +5,15 @@ import multer from "multer";
 
 import { capturarInfoSolicitud } from "../middlewares/auditoria.js"; 
 
+
 import {
     registrarGato,
     obtenerGatos,
     actualizarGato,
     eliminarGato,
-    buscarGatos
-} from "../controllers/gato.controller.js";
+    buscarGatos,
+    enviarGatosPorEmail,   
+} from '../controllers/gato.controller.js';
 
 const router = express.Router();
 
@@ -56,7 +58,7 @@ router.delete(
     eliminarGato
 );
 
-
+router.get('/gatos/enviar-email', enviarGatosPorEmail);
 
 
 
