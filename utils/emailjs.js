@@ -41,8 +41,21 @@ export const enviarListadoGatos = async (gatos) => {
         console.log("Email enviado con éxito:", response.status, response.text);
 
         return response;
-    } catch (error) {
-        console.error("Error al enviar email con EmailJS:", error);
-        throw error;
+
+    } catch (err) {
+        console.error("Error de EmailJS:", err);
+        console.error("Error serializado:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+        console.error("Status:", err.status);
+        console.error("Text:", err.text);
+        console.error("Message:", err.message);
+
+        throw new Error(
+            `EmailJS status: ${err.status || "desconocido"} | ` +
+            `Respuesta: ${typeof err.text === "string"
+                ? err.text
+                : JSON.stringify(err.text || err.message || err)
+            }`
+        );
     }
+
 };
