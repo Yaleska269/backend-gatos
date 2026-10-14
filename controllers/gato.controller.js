@@ -383,8 +383,11 @@ export const buscarGatos = async (req, res) => {
 };
 
 // Enviar listado de gatos por correo electrónico
+
 export const enviarGatosPorEmail = async (req, res) => {
     try {
+        console.log("Iniciando envío del listado de gatos...");
+
         const snapshot = await db
             .collection("gatos")
             .orderBy("fecha", "desc")
@@ -395,18 +398,23 @@ export const enviarGatosPorEmail = async (req, res) => {
             ...doc.data(),
         }));
 
+        console.log("Cantidad de gatos encontrados:", gatos.length);
+
         await enviarListadoGatos(gatos);
+
+        console.log("Listado enviado correctamente.");
 
         return res.status(200).json({
             mensaje: `Se envió el listado de ${gatos.length} gato(s) por correo.`,
             total: gatos.length,
         });
     } catch (error) {
-        console.error("Error al enviar gatos por email:", error);
+        console.error("ERROR COMPLETO AL ENVIAR CORREO:", error);
 
         return res.status(500).json({
             mensaje: "Error al enviar el listado de gatos por correo.",
-            error: error.message,
+            detalle: error.message || String(error),
+            codigo: error.status || error.code || null,
         });
     }
 };
