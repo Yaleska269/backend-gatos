@@ -6,6 +6,8 @@ import db from "./firebase.js";
 import gatoRoutes from "./routes/gato.routes.js";
 import climaRoutes from "./routes/clima.routes.js";
 
+import estadisticasRoutes from "./routes/estadisticas.routes.js";
+
 const app = express();
 
 app.set("trust proxy", 1);
@@ -48,6 +50,7 @@ app.use("/gatos", limiterGatos);
 // Rutas del proyecto
 app.use(gatoRoutes);
 app.use(climaRoutes);
+app.use(estadisticasRoutes);
 
 // Ruta no registrada
 app.use((req, res) => {
