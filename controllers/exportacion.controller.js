@@ -1,6 +1,11 @@
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
+import db from "../firebase.js";
 import { calcularEstadisticas } from "./estadisticas.controller.js";
+
+// =====================================================
+// EXPORTAR ESTADÍSTICAS A EXCEL
+// =====================================================
 
 export const exportarEstadisticasExcel = async (req, res) => {
     try {
@@ -88,6 +93,7 @@ export const exportarEstadisticasExcel = async (req, res) => {
                 fgColor: { argb: "FF70AD47" },
             },
         };
+
         hojaRazas.getRow(1).height = 28;
         hojaRazas.addRow([]);
 
@@ -131,6 +137,7 @@ export const exportarEstadisticasExcel = async (req, res) => {
                 fgColor: { argb: "FFED7D31" },
             },
         };
+
         hojaMeses.getRow(1).height = 28;
         hojaMeses.addRow([]);
 
@@ -169,6 +176,7 @@ export const exportarEstadisticasExcel = async (req, res) => {
                 fgColor: { argb: "FF7030A0" },
             },
         };
+
         hojaGatos.getRow(1).height = 28;
         hojaGatos.addRow([]);
 
@@ -217,15 +225,17 @@ export const exportarEstadisticasExcel = async (req, res) => {
         hojaGatos.getColumn(5).width = 18;
         hojaGatos.getColumn(6).width = 25;
 
-        const nombreArchivo = `estadisticas-gatos-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const nombreArchivoExcel =
+            `estadisticas-gatos-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
         res.setHeader(
             "Content-Type",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         );
+
         res.setHeader(
             "Content-Disposition",
-            `attachment; filename="${nombreArchivo}"`
+            `attachment; filename="${nombreArchivoExcel}"`
         );
 
         await workbook.xlsx.write(res);
@@ -262,12 +272,13 @@ export const exportarEstadisticasPDF = async (req, res) => {
             },
         });
 
-        const nombreArchivo = `estadisticas-gatos-${new Date().toISOString().slice(0, 10)}.pdf`;
+        const nombreArchivoPDF =
+            `estadisticas-gatos-${new Date().toISOString().slice(0, 10)}.pdf`;
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
             "Content-Disposition",
-            `attachment; filename="${nombreArchivo}"`
+            `attachment; filename="${nombreArchivoPDF}"`
         );
 
         doc.pipe(res);
@@ -475,5 +486,105 @@ export const exportarEstadisticasPDF = async (req, res) => {
         }
 
         if (!res.writableEnded) res.end();
+    }
+};
+
+// =====================================================
+// EXPORTAR LISTADO DE GATOS A CSV
+// =====================================================
+
+export const exportarGatosCSV = async (req, res) => {
+    try {
+        const snapshot = await db
+            .collection("gatos")
+            .orderBy("fecha", "desc")
+            .get();
+
+        const gatos = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        // Escapar correctamente los valores CSV
+        const escapar = (valor) => {
+            if (valor === null || valor === undefined) {
+                return "";
+            }
+
+            const str = String(valor);
+
+            if (
+                str.includes(",") ||
+                str.includes('"') ||
+                str.includes("\n") ||
+                str.includes("\r")
+            ) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+
+            return str;
+        };
+
+        const encabezados = [
+            "ID",
+            "Nombre",
+            "Edad",
+            "Peso (kg)",
+            "Raza",
+            "URL Imagen",
+            "Fecha de registro",
+        ];
+
+        const lineas = [encabezados.join(",")];
+
+        gatos.forEach((gato) => {
+            let fecha = "";
+
+            if (gato.fecha) {
+                const fechaConvertida =
+                    typeof gato.fecha.toDate === "function"
+                        ? gato.fecha.toDate()
+                        : new Date(gato.fecha);
+
+                fecha = Number.isNaN(fechaConvertida.getTime())
+                    ? String(gato.fecha)
+                    : fechaConvertida.toLocaleString("es-ES");
+            }
+
+            const fila = [
+                escapar(gato.id),
+                escapar(gato.nombre),
+                escapar(gato.edad ?? ""),
+                escapar(gato.peso ?? ""),
+                escapar(gato.raza),
+                escapar(gato.imagenUrl),
+                escapar(fecha),
+            ];
+
+            lineas.push(fila.join(","));
+        });
+
+        const csvContent = lineas.join("\n");
+
+        const nombreArchivo =
+            `gatos-${new Date().toISOString().slice(0, 10)}.csv`;
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${nombreArchivo}"`
+        );
+
+        // BOM UTF-8 para mostrar correctamente los acentos en Excel
+        res.write("\uFEFF");
+        res.end(csvContent);
+    } catch (error) {
+        console.error("Error al exportar gatos a CSV:", error);
+
+        res.status(500).json({
+            mensaje: "Error al generar el archivo CSV de gatos.",
+            error: error.message,
+        });
     }
 };
