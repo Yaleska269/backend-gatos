@@ -1,11 +1,6 @@
 import express from "express";
-
 import multer from "multer";
-
-
 import { capturarInfoSolicitud } from "../middlewares/auditoria.js"; 
-
-
 import {
     registrarGato,
     obtenerGatos,
